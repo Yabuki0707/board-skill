@@ -1,0 +1,375 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>🕵️ 个人侦探线索板</title>
+<style>
+* { margin:0; padding:0; box-sizing:border-box; }
+body {
+  background:#1a0f08;
+  font-family:"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif;
+  color:#e0d5c1; overflow-x:auto;
+}
+
+.board {
+  display:grid;
+  grid-template-columns:repeat(auto-fill, minmax(340px, 1fr));
+  gap:0; padding:120px 20px 60px;
+  min-height:100vh; position:relative;
+  background:
+    repeating-linear-gradient(45deg, #3e2b1f 0px, #3e2b1f 3px, #38261b 3px, #38261b 24px),
+    radial-gradient(ellipse at 20% 50%, rgba(139,90,43,0.15) 0%, transparent 60%),
+    radial-gradient(ellipse at 80% 30%, rgba(139,90,43,0.1) 0%, transparent 50%);
+}
+
+.domain-column {
+  position:relative; margin:0 12px 40px; min-height:200px;
+}
+
+/* ====== 顶栏 ====== */
+.header {
+  position:fixed; top:0; left:0; right:0; z-index:1000;
+  background:linear-gradient(180deg, rgba(20,12,8,0.97), rgba(20,12,8,0.88));
+  padding:18px 50px; border-bottom:3px solid #8b5a2b;
+  box-shadow:0 4px 30px rgba(0,0,0,0.6);
+  display:flex; align-items:baseline; gap:24px;
+}
+.header h1 { font-size:26px; letter-spacing:3px; color:#f5deb3; text-shadow:0 2px 8px rgba(139,90,43,0.5); }
+.header .situation { font-size:14px; color:#c4a97d; font-style:italic; max-width:600px; }
+
+/* ====== 图例 ====== */
+.legend {
+  position:fixed; top:80px; right:30px; z-index:999;
+  background:rgba(20,12,8,0.85); padding:12px 18px; border-radius:6px;
+  border:1px solid #8b5a2b55; font-size:12px;
+}
+.legend-item { display:flex; align-items:center; gap:8px; margin:4px 0; }
+.legend-dot { width:10px; height:10px; border-radius:2px; }
+
+/* ====== 便利贴卡片 ====== */
+.card {
+  position:absolute; padding:14px 16px;
+  box-shadow:5px 5px 15px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.1);
+  border-radius:3px; font-size:13px; line-height:1.5;
+  transition:transform 0.12s, box-shadow 0.12s;
+  color:#333;
+}
+.card:hover { transform:scale(1.03) !important; z-index:100; box-shadow:8px 8px 24px rgba(0,0,0,0.55); }
+
+.card.domain {
+  color:#f5deb3; font-weight:bold; font-size:18px; text-align:center;
+  border:2px solid #8b5a2b; box-shadow:0 0 20px rgba(139,90,43,0.2);
+  letter-spacing:1px;
+}
+.card.case { border-left:5px solid rgba(0,0,0,0.25); }
+.card.clue { font-size:12px; border-left:3px dashed rgba(0,0,0,0.15); }
+.card.task { font-size:12px; }
+
+/* ====== 归档案件：灰调 70% 透明 ====== */
+.card.case.status-archived {
+  opacity:0.7; filter:grayscale(0.65);
+}
+.card.case.status-archived:hover { opacity:0.85; filter:grayscale(0.4); }
+
+.pin {
+  position:absolute; top:-10px; left:50%; transform:translateX(-50%);
+  width:16px; height:16px;
+  background:radial-gradient(circle at 35% 35%, #e53935, #b71c1c);
+  border-radius:50%; box-shadow:0 3px 6px rgba(0,0,0,0.5); border:2px solid #7f0000;
+}
+.card-title { font-weight:bold; margin-bottom:4px; font-size:1.05em; }
+.card-meta { opacity:0.7; font-size:11px; margin-top:2px; line-height:1.4; }
+
+/* ====== 案件详情 ====== */
+.case-goal {
+  font-size:11px; color:#555; margin-top:6px; padding-top:4px;
+  border-top:1px dashed rgba(0,0,0,0.1); line-height:1.4;
+}
+.case-blocks {
+  font-size:11px; color:#c62828; margin-top:3px; line-height:1.4;
+}
+.case-situation {
+  font-size:10px; color:#888; margin-top:3px; font-style:italic; line-height:1.4;
+}
+.case-links {
+  font-size:10px; color:#7b8c9d; margin-top:3px; line-height:1.4;
+}
+
+/* ====== 收拢按钮 ====== */
+.collapse-btn {
+  position:absolute; top:6px; right:8px; width:20px; height:20px;
+  line-height:18px; text-align:center; font-size:10px; cursor:pointer;
+  color:#999; border-radius:50%; background:rgba(0,0,0,0.06);
+  transition:transform 0.25s ease; z-index:5;
+}
+.collapse-btn:hover { background:rgba(0,0,0,0.18); color:#555; }
+.card.case.collapsed .collapse-btn { transform:rotate(-90deg); }
+
+/* ====== 任务备注 ====== */
+.task-note {
+  font-size:10px; color:#666; margin-top:5px; padding-top:4px;
+  border-top:1px dashed rgba(0,0,0,0.08); line-height:1.3;
+  font-style:italic;
+}
+
+/* ====== 任务状态色带 ====== */
+.card.task.status-doing  { border-left:4px solid #1976d2; }
+.card.task.status-todo   { border-left:4px solid #757575; }
+.card.task.status-blocked { border-left:4px solid #c62828; }
+.card.task.status-waiting { border-left:4px solid #f57f17; }
+.card.task.status-done   { border-left:4px solid #2e7d32; opacity:0.8; }
+.card.task.status-archived { border-left:4px solid #4e342e; opacity:0.6; }
+
+/* ====== 高重要度边框高光 ====== */
+.card.task.priority-critical,
+.card.clue.priority-critical {
+  box-shadow: 0 0 12px rgba(255,255,255,0.4), 5px 5px 15px rgba(0,0,0,0.4);
+}
+.card.task.priority-high,
+.card.clue.priority-high {
+  box-shadow: 0 0 8px rgba(255,255,255,0.3), 5px 5px 15px rgba(0,0,0,0.4);
+}
+.card.task.priority-critical:hover,
+.card.clue.priority-critical:hover {
+  box-shadow: 0 0 18px rgba(255,255,255,0.55), 8px 8px 24px rgba(0,0,0,0.5);
+}
+.card.task.priority-high:hover,
+.card.clue.priority-high:hover {
+  box-shadow: 0 0 12px rgba(255,255,255,0.45), 8px 8px 24px rgba(0,0,0,0.5);
+}
+
+/* ====== SVG 连线层 ====== */
+.svg-layer {
+  position:absolute; top:0; left:0; width:100%; height:100%;
+  pointer-events:none; z-index:0;
+}
+
+/* ====== 打印 ====== */
+@media print {
+  .header, .legend, .svg-layer { display:none; }
+  body { background:#fff; }
+  .board { background:#fff; padding:20px; display:block; }
+  .domain-column { break-inside:avoid; margin:0 0 30px; position:static; }
+  .card { position:static !important; transform:none !important;
+          margin:8px 0; box-shadow:none; border:1px solid #ccc; width:auto !important; }
+  .pin { display:none; }
+}
+
+/* ====== 手机端 ====== */
+@media (max-width: 768px) {
+  .header { padding:10px 16px; }
+  .header h1 { font-size:18px; letter-spacing:1px; }
+  .header .situation { font-size:12px; max-width:100%; }
+  .legend { top:60px; right:8px; padding:6px 10px; font-size:10px; }
+  .board { padding:100px 8px 40px; grid-template-columns:1fr; }
+  .domain-column { margin:0 0 24px; }
+}
+</style>
+</head>
+<body>
+<div class="header">
+  <h1>🕵️ 个人侦探线索板</h1>
+  <div class="situation" id="situation"></div>
+</div>
+<div class="legend">
+  <div class="legend-item"><span class="legend-dot" style="background:#2a2a2a;border:2px solid #8b5a2b;"></span> 领域</div>
+  <div class="legend-item"><span class="legend-dot" style="background:#ffe599;"></span> 案件</div>
+  <div class="legend-item"><span class="legend-dot" style="background:#fff2cc;"></span> 线索</div>
+  <div class="legend-item"><span class="legend-dot" style="background:#cfe2f3;"></span> 任务</div>
+  <div class="legend-item"><span class="legend-dot" style="background:#d9ead3;"></span> 已完成</div>
+</div>
+<div class="board" id="board">
+  <svg class="svg-layer" id="svg-layer"></svg>
+  {{BOARD_HTML}}
+</div>
+<script>
+const boardData = {{BOARD_JSON}};
+document.getElementById('situation').textContent = '当前处境：' + (boardData.situation || '暂无记录');
+
+const svg = document.getElementById('svg-layer');
+const board = document.getElementById('board');
+
+function clearLines() {
+  while (svg.firstChild) svg.removeChild(svg.firstChild);
+}
+
+function drawCurve(from, to, color, dash) {
+  if (!from || !to) return;
+  var br = board.getBoundingClientRect();
+  var r1 = from.getBoundingClientRect();
+  var r2 = to.getBoundingClientRect();
+  var x1 = r1.left + r1.width/2 - br.left + board.scrollLeft;
+  var y1 = r1.bottom - br.top + board.scrollTop;
+  var x2 = r2.left + r2.width/2 - br.left + board.scrollLeft;
+  var y2 = r2.top - br.top + board.scrollTop;
+  var cp = Math.max(Math.abs(x2-x1)*0.5, 40);
+  var line = document.createElementNS('http://www.w3.org/2000/svg','path');
+  line.setAttribute('d', 'M ' + x1 + ' ' + y1 + ' C ' + x1 + ' ' + (y1+cp)
+    + ', ' + x2 + ' ' + (y2-cp) + ', ' + x2 + ' ' + y2);
+  line.setAttribute('stroke', color);
+  line.setAttribute('stroke-width', dash ? '1.5' : '2');
+  line.setAttribute('fill', 'none');
+  line.setAttribute('opacity', dash ? '0.3' : '0.45');
+  if(dash) line.setAttribute('stroke-dasharray', '5,4');
+  svg.appendChild(line);
+}
+
+function el(id) { return document.querySelector('.card[data-id="' + id + '"]'); }
+
+function drawAllLines() {
+  clearLines();
+  svg.setAttribute('width', board.scrollWidth);
+  svg.setAttribute('height', board.scrollHeight);
+
+  boardData.domains.forEach(function(d) {
+    var dEl = el(d.id);
+    if (!dEl) return;
+    d.cases.forEach(function(c) {
+      var cEl = el(c.id);
+      if (!cEl) return;
+      drawCurve(dEl, cEl, '#d7ccc8', false);
+      var items = boardData.clues.filter(function(x){return x.case===c.id;})
+        .concat(boardData.tasks.filter(function(x){return x.case===c.id;}));
+      var prevEl = cEl;
+      items.forEach(function(x) {
+        var iEl = el(x.id);
+        if (iEl) {
+          drawCurve(prevEl, iEl, x.hasOwnProperty('confidence') ? '#a5d6a7' : '#90caf9', true);
+          prevEl = iEl;
+        }
+      });
+    });
+  });
+}
+
+drawAllLines();
+
+var scrollTimer;
+board.addEventListener('scroll', function() {
+  clearTimeout(scrollTimer);
+  scrollTimer = setTimeout(drawAllLines, 80);
+});
+
+var resizeTimer;
+window.addEventListener('resize', function() {
+  clearTimeout(resizeTimer);
+  resizeTimer = setTimeout(drawAllLines, 150);
+});
+
+// ====== 收拢/展开子元素（按案件组精确计算） ======
+(function initCardMeta() {
+  document.querySelectorAll('.card').forEach(function(el) {
+    el.dataset.origTop = el.style.top.replace('px','');
+    el.style.transition = 'top 0.4s cubic-bezier(0.22, 0.61, 0.36, 1), opacity 0.25s ease';
+  });
+})();
+
+function syncCollapsedItems() {
+  document.querySelectorAll('.domain-column').forEach(function(col) {
+    var cards = Array.from(col.querySelectorAll('.card'));
+    cards.sort(function(a, b) {
+      return (parseFloat(a.dataset.origTop) || 0) - (parseFloat(b.dataset.origTop) || 0);
+    });
+
+    // 第一步：全部复位 top，但收拢中的 item 不碰 opacity
+    var hiddenSet = new Set();
+    col.querySelectorAll('.card.case.collapsed').forEach(function(caseEl) {
+      var cid = caseEl.dataset.id;
+      boardData.clues.forEach(function(x) { if (x.case === cid) hiddenSet.add(x.id); });
+      boardData.tasks.forEach(function(x) { if (x.case === cid) hiddenSet.add(x.id); });
+    });
+
+    cards.forEach(function(card) {
+      card.style.top = (parseFloat(card.dataset.origTop) || 0) + 'px';
+      if (!hiddenSet.has(card.dataset.id)) {
+        card.style.opacity = '1';
+        card.style.pointerEvents = '';
+      }
+    });
+
+    // 第二步：找到每个收拢案件，计算其下属 item 组的空间回收量
+    // 回收量 = 最后 item 底部 + 24 - 案件底部 - 10
+    // 其中 10 = 案件卡片到第一个 item 的间距, 24 = 最后一组 item 到下一个案件间距
+    var caseReclaims = []; // { afterCardIndex, reclaim }
+    col.querySelectorAll('.card.case.collapsed').forEach(function(caseEl) {
+      var cid = caseEl.dataset.id;
+      var caseTop = parseFloat(caseEl.dataset.origTop) || 0;
+      var caseBottom = caseTop + caseEl.offsetHeight;
+
+      // 收集该案件所有 item 的 origTop
+      var itemCards = [];
+      cards.forEach(function(card) {
+        var id = card.dataset.id;
+        var hit = boardData.clues.some(function(x){return x.case===cid && x.id===id;})
+               || boardData.tasks.some(function(x){return x.case===cid && x.id===id;});
+        if (hit) itemCards.push(card);
+      });
+
+      if (itemCards.length === 0) return;
+
+      // 按 origTop 排序取首尾
+      itemCards.sort(function(a,b){return (parseFloat(a.dataset.origTop)||0)-(parseFloat(b.dataset.origTop)||0);});
+      var lastItem = itemCards[itemCards.length - 1];
+      var lastItemBottom = (parseFloat(lastItem.dataset.origTop) || 0) + lastItem.offsetHeight;
+
+      // 该案 item 组应回收的总空间
+      var reclaim = (lastItemBottom + 24) - (caseBottom + 10);
+
+      // 第一个 item 在 cards 中的索引，作为位移起点
+      var startIdx = cards.indexOf(itemCards[0]);
+      caseReclaims.push({ startIdx: startIdx, reclaim: reclaim, itemCards: itemCards });
+    });
+
+    // 第三步：构建每个卡片的累计偏移
+    var shiftByCard = new Array(cards.length).fill(0);
+    caseReclaims.forEach(function(cr) {
+      for (var i = cr.startIdx; i < cards.length; i++) {
+        shiftByCard[i] += cr.reclaim;
+      }
+    });
+
+    // 第四步：应用位移和透明度
+    var allHiddenIds = new Set();
+    caseReclaims.forEach(function(cr) {
+      cr.itemCards.forEach(function(c) { allHiddenIds.add(c.dataset.id); });
+    });
+
+    cards.forEach(function(card, idx) {
+      var orig = parseFloat(card.dataset.origTop) || 0;
+      if (allHiddenIds.has(card.dataset.id)) {
+        card.style.opacity = '0';
+        card.style.pointerEvents = 'none';
+      }
+      card.style.top = (orig - shiftByCard[idx]) + 'px';
+    });
+
+    // 更新列尺寸（清除固定 height 用 minHeight，避免滚动跳动）
+    var lastVisible = null;
+    for (var i = cards.length - 1; i >= 0; i--) {
+      if (cards[i].style.opacity !== '0') { lastVisible = cards[i]; break; }
+    }
+    if (lastVisible) {
+      var ltop = parseFloat(lastVisible.style.top) || parseFloat(lastVisible.dataset.origTop) || 0;
+      col.style.height = '';
+      col.style.minHeight = (ltop + lastVisible.offsetHeight + 40) + 'px';
+    }
+  });
+
+  setTimeout(drawAllLines, 450);
+}
+
+// 监听 collapse 按钮（MutationObserver 监听 class 变化）
+var observer = new MutationObserver(function(mutations) {
+  mutations.forEach(function(m) {
+    if (m.target.classList.contains('case') && m.attributeName === 'class') {
+      setTimeout(syncCollapsedItems, 50);
+    }
+  });
+});
+document.querySelectorAll('.card.case').forEach(function(el) {
+  observer.observe(el, { attributes: true, attributeFilter: ['class'] });
+});
+</script>
+</body>
+</html>
