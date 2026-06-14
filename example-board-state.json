@@ -1,0 +1,52 @@
+{
+  "version": 1,
+  "situation": "【示例数据】此文件仅展示 board-state.json 的数据结构，无真实内容。",
+  "updatedAt": "2026-01-01T00:00",
+  "domains": [
+    {
+      "id": "example-domain",
+      "name": "示例领域",
+      "emoji": "📌",
+      "situation": "领域概况描述占位",
+      "cases": [
+        {
+          "id": "example-domain-001",
+          "title": "示例案件",
+          "status": "active",
+          "priority": "medium",
+          "situation": "案件当前状态描述",
+          "goal": "案件目标描述",
+          "blocks": [],
+          "clues": ["clue-001"],
+          "tasks": ["task-001"],
+          "links": [],
+          "urgency": "medium",
+          "createdAt": "2026-01-01T00:00"
+        }
+      ],
+      "createdAt": "2026-01-01T00:00"
+    }
+  ],
+  "clues": [
+    {
+      "id": "clue-001",
+      "text": "示例线索内容",
+      "domain": "example-domain",
+      "case": "example-domain-001",
+      "confidence": "medium",
+      "priority": "medium",
+      "createdAt": "2026-01-01T00:00"
+    }
+  ],
+  "tasks": [
+    {
+      "id": "task-001",
+      "text": "示例任务内容",
+      "domain": "example-domain",
+      "case": "example-domain-001",
+      "status": "todo",
+      "priority": "medium",
+      "createdAt": "2026-01-01T00:00"
+    }
+  ]
+}
